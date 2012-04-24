@@ -1,0 +1,7 @@
+This module enables you to protect entries in /proc from untrusted users running in LXC containers. To use it:
+- Load the module
+- Add /proc entries to the blacklist by running echo "path-to-proc-entry" > /proc/procprotect
+
+Caveats and todos:
+- Only protects opens, not listings
+- The ACL mechanism is currently very simple. Permission is denied to containers that have a non-root mount namespace. This will eventually be extended to cgroup-style ACLs.
