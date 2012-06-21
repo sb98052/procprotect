@@ -50,12 +50,15 @@ make -C %{kernelpath} V=1 M=$(pwd) modules
 
 %install
 install -D -m 755 procprotect.ko $RPM_BUILD_ROOT/lib/modules/%{kernel_id}/kernel/net/procprotect/procprotect.ko
+mkdir -p $RPM_BUILD_ROOT/etc/modules-load.d
+install -m 644 procprotect.conf $RPM_BUILD_ROOT/etc/modules-load.d/procprotect.conf
 
 %clean
 rm -rf $RPM_BUILD_ROOT
 
 %files
 /lib/modules/%{kernel_id}
+/etc/modules-load.d/procprotect.conf
 
 %post
 
