@@ -61,6 +61,7 @@ rm -rf $RPM_BUILD_ROOT
 /etc/modules-load.d/procprotect.conf
 
 %post
+/sbin/depmod -a
 
 %postun
 
