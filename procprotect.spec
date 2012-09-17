@@ -1,6 +1,6 @@
 %define name procprotect
 %define version 0.1
-%define taglevel 1
+%define taglevel 2
 
 ### legacy from locally-built kernels, used to define these
 # kernel_release : 1.fc16  (24 is then the planetlab taglevel)
@@ -66,3 +66,6 @@ rm -rf $RPM_BUILD_ROOT
 %postun
 
 %changelog
+* Mon Jul 09 2012 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - procprotect-0.1-2
+- module to get loaded at boot-time
+
