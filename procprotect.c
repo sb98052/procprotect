@@ -230,9 +230,9 @@ static int __init procprotect_init(void)
     aclqpath.len = strnlen(aclpath, PATH_MAX);
 
     proc_probe.kp.addr = 
-        (kprobe_opcode_t *) kallsyms_lookup_name("do_lookup");
+        (kprobe_opcode_t *) kallsyms_lookup_name("lookup_fast");
     if (!proc_probe.kp.addr) {
-        printk("Couldn't find %s to plant kretprobe\n", "do_execve");
+        printk("Couldn't find %s to plant kretprobe\n", "lookup_fast");
         return -1;
     }
 
