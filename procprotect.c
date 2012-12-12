@@ -290,6 +290,18 @@ static int __init procprotect_init(void)
     aclqpath.name = aclpath;
     aclqpath.len = strnlen(aclpath, PATH_MAX);
 
+    dolast_probe.kp.addr = 
+        (kprobe_opcode_t *) kallsyms_lookup_name("do_last");
+
+    if (!dolast_probe.kp.addr) {
+        printk("Couldn't find %s to plant kretprobe\n", "do_last");
+        return -1;
+    }
+
+    if ((ret = register_jprobe(&dolast_probe)) <0) {
+                  printk("register_jprobe failed, returned %u\n", ret);
+                  return -1;
+    }
     fast_probe.kp.addr = 
         (kprobe_opcode_t *) kallsyms_lookup_name("lookup_fast");
     if (!fast_probe.kp.addr) {
@@ -304,18 +316,7 @@ static int __init procprotect_init(void)
         return -1;
     }
 
-    dolast_probe.kp.addr = 
-        (kprobe_opcode_t *) kallsyms_lookup_name("do_last");
-
-    if (!dolast_probe.kp.addr) {
-        printk("Couldn't find %s to plant kretprobe\n", "do_last");
-        return -1;
-    }
-
-    if ((ret = register_jprobe(&dolast_probe)) <0) {
-                  printk("register_jprobe failed, returned %u\n", ret);
-                  return -1;
-    }
+    
 
     if ((ret = register_kretprobe(&fast_probe)) <0) {
         printk("register_kretprobe failed, returned %d\n", ret);
