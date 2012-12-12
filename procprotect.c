@@ -46,6 +46,7 @@ MODULE_VERSION(VERSION_STR);
 
 struct procprotect_ctx {
     struct inode **inode;
+    struct path *path;
     int flags;
 };
 
@@ -60,12 +61,25 @@ struct hlist_head procprotect_hash[HASH_SIZE];
 
 struct proc_dir_entry *proc_entry;
 
+static int run_acl(unsigned long ino) {
+    struct hlist_node *n;
+    struct acl_entry *entry;
+    hlist_for_each_entry_rcu(entry, 
+            n, &procprotect_hash[ino & (HASH_SIZE-1)],
+            hlist) {
+        if (entry->ino==ino) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
 /*
    Entry point of intercepted call. We need to do two things here:
    - Decide if we need the heavier return hook to be called
    - Save the first argument, which is in a register, for consideration in the return hook
    */
-static int do_lookup_entry(struct kretprobe_instance *ri, struct pt_regs *regs) {
+static int lookup_fast_entry(struct kretprobe_instance *ri, struct pt_regs *regs) {
     int ret = -1;
     struct procprotect_ctx *ctx;
     struct nameidata *nd = (struct nameidata *) regs->di;
@@ -84,23 +98,12 @@ static int do_lookup_entry(struct kretprobe_instance *ri, struct pt_regs *regs) 
     return ret;
 }
 
-static int run_acl(unsigned long ino) {
-    struct hlist_node *n;
-    struct acl_entry *entry;
-    hlist_for_each_entry_rcu(entry, 
-            n, &procprotect_hash[ino & (HASH_SIZE-1)],
-            hlist) {
-        if (entry->ino==ino) {
-            return 0;
-        }
-    }
-    return 1;
-}
-
 /* The entry hook ensures that the return hook is only called for
    accesses to /proc */
 
-static int do_lookup_ret(struct kretprobe_instance *ri, struct pt_regs *regs)
+int printed=0;
+
+static int lookup_fast_ret(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
     struct procprotect_ctx *ctx = (struct procprotect_ctx *) ri->data;
     int ret = regs->ax;
@@ -108,6 +111,59 @@ static int do_lookup_ret(struct kretprobe_instance *ri, struct pt_regs *regs)
     if (ret==0) {
         /* The kernel is going to honor the request. Here's where we step in */
         struct inode *inode = *(ctx->inode);
+        printk(KERN_CRIT "Inode=%u",inode->i_ino);
+        if (!run_acl(inode->i_ino)) {
+            if (current->nsproxy->mnt_ns!=init_task.nsproxy->mnt_ns) {
+                regs->ax = -EPERM;
+            }
+        }
+    }
+    else if (ret==1) {
+        if (!printed) {
+            dump_stack();
+            printed=1;
+        }
+    }
+
+
+    return 0;
+}
+
+static int lookup_slow_entry(struct kretprobe_instance *ri, struct pt_regs *regs) {
+    int ret = -1;
+    struct procprotect_ctx *ctx;
+    struct nameidata *nd = (struct nameidata *) regs->di;
+    struct qstr *q = (struct qstr *) regs->si;
+    struct path *p = (struct path *) regs->dx;
+
+    struct dentry *parent = nd->path.dentry;
+    struct inode *pinode = parent->d_inode;
+
+    printk(KERN_CRIT "Entered lookup slow");
+    if (pinode->i_sb->s_magic == PROC_SUPER_MAGIC
+            && current->nsproxy->mnt_ns!=init_task.nsproxy->mnt_ns) {	
+        ctx = (struct procprotect_ctx *) ri->data;
+        ctx->flags = nd->flags;
+        ctx->path = p;
+        ret = 0;
+    }
+
+    return ret;
+}
+
+/* The entry hook ensures that the return hook is only called for
+   accesses to /proc */
+
+static int lookup_slow_ret(struct kretprobe_instance *ri, struct pt_regs *regs)
+{
+    struct procprotect_ctx *ctx = (struct procprotect_ctx *) ri->data;
+    int ret = regs->ax;
+
+    if (ret==0) {
+        /* The kernel is going to honor the request. Here's where we step in */
+        struct path *p = ctx->path;
+        struct inode *inode = p->dentry->d_inode;
+        printk(KERN_CRIT "Looking at inode %x",inode);
         if (!run_acl(inode->i_ino)) {
             if (current->nsproxy->mnt_ns!=init_task.nsproxy->mnt_ns) {
                 regs->ax = -EPERM;
@@ -140,9 +196,16 @@ static struct jprobe dolast_probe = {
 	.entry = (kprobe_opcode_t *) do_last_probe
 };
 
-static struct kretprobe proc_probe = {
-    .entry_handler = (kprobe_opcode_t *) do_lookup_entry,
-    .handler = (kprobe_opcode_t *) do_lookup_ret,
+static struct kretprobe fast_probe = {
+    .entry_handler = (kprobe_opcode_t *) lookup_fast_entry,
+    .handler = (kprobe_opcode_t *) lookup_fast_ret,
+    .maxactive = 20,
+    .data_size = sizeof(struct procprotect_ctx)
+};
+
+static struct kretprobe slow_probe = {
+    .entry_handler = (kprobe_opcode_t *) lookup_slow_entry,
+    .handler = (kprobe_opcode_t *) lookup_slow_ret,
     .maxactive = 20,
     .data_size = sizeof(struct procprotect_ctx)
 };
@@ -176,7 +239,7 @@ static void add_entry(char *pathname) {
 
 static void __exit procprotect_exit(void)
 {
-    unregister_kretprobe(&proc_probe);
+    unregister_kretprobe(&fast_probe);
 	unregister_jprobe(&dolast_probe);
     struct hlist_node *n;
     struct acl_entry *entry;
@@ -210,6 +273,7 @@ int procfile_write(struct file *file, const char *buffer, unsigned long count, v
     }
     else
         pathname[count]='\0';
+
     add_entry(pathname);	
     printk(KERN_CRIT "Length of buffer=%d",strlen(pathname));
     return count;
@@ -229,12 +293,21 @@ static int __init procprotect_init(void)
     aclqpath.name = aclpath;
     aclqpath.len = strnlen(aclpath, PATH_MAX);
 
-    proc_probe.kp.addr = 
+    fast_probe.kp.addr = 
         (kprobe_opcode_t *) kallsyms_lookup_name("lookup_fast");
-    if (!proc_probe.kp.addr) {
+    if (!fast_probe.kp.addr) {
         printk("Couldn't find %s to plant kretprobe\n", "lookup_fast");
         return -1;
     }
+
+    /*
+    slow_probe.kp.addr = 
+        (kprobe_opcode_t *) kallsyms_lookup_name("lookup_slow");
+    if (!slow_probe.kp.addr) {
+        printk("Couldn't find %s to plant kretprobe\n", "lookup_slow");
+        return -1;
+    }
+    */
 
     dolast_probe.kp.addr = 
         (kprobe_opcode_t *) kallsyms_lookup_name("do_last");
@@ -249,12 +322,12 @@ static int __init procprotect_init(void)
                   return -1;
     }
 
-    if ((ret = register_kretprobe(&proc_probe)) <0) {
+    if ((ret = register_kretprobe(&fast_probe)) <0) {
         printk("register_kretprobe failed, returned %d\n", ret);
         return -1;
     }
     printk("Planted kretprobe at %p, handler addr %p\n",
-            proc_probe.kp.addr, proc_probe.handler);
+            fast_probe.kp.addr, fast_probe.handler);
 
     proc_entry = create_proc_entry("procprotect", 0644, NULL);
     proc_entry->write_proc = procfile_write;
