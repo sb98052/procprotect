@@ -1,5 +1,5 @@
 %define name procprotect
-%define version 0.1
+%define version 0.3
 %define taglevel 3
 
 ### legacy from locally-built kernels, used to define these

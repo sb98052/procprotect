@@ -113,9 +113,7 @@ static int lookup_fast_ret(struct kretprobe_instance *ri, struct pt_regs *regs)
         /* The kernel is going to honor the request. Here's where we step in */
         struct inode *inode = *(ctx->inode);
         if (!run_acl(inode->i_ino)) {
-            if (current->nsproxy->mnt_ns!=init_task.nsproxy->mnt_ns) {
-                regs->ax = -EPERM;
-            }
+            regs->ax = -EPERM;
         }
     }
 
@@ -158,12 +156,14 @@ static int lookup_slow_ret(struct kretprobe_instance *ri, struct pt_regs *regs)
 
     if (ret==0) {
         /* The kernel is going to honor the request. Here's where we step in */
+        /*struct qstr *q = ctx->q;
+        if (!strncmp(q->name,"sysrq-trigger",13)) {
+            printk(KERN_CRIT "lookup_slow sysrqtrigger");
+        }*/
         struct path *p = ctx->path;
         struct inode *inode = p->dentry->d_inode;
         if (!run_acl(inode->i_ino)) {
-            if (current->nsproxy->mnt_ns!=init_task.nsproxy->mnt_ns) {
-                regs->ax = -EPERM;
-            }
+            regs->ax = -EPERM;
         }
     }
 
@@ -177,12 +177,17 @@ struct open_flags {
   int intent;
 };
 
-static struct file *do_last_probe(struct nameidata *nd, struct path *path,
+static struct file *do_last_probe(struct nameidata *nd, struct path *path, struct file *file,
                          struct open_flags *op, const char *pathname) {
     struct dentry *parent = nd->path.dentry;
     struct inode *pinode = parent->d_inode;
+    struct qstr *q = &nd->last;
 
+    
     if (pinode->i_sb->s_magic == PROC_SUPER_MAGIC && current->nsproxy->mnt_ns!=init_task.nsproxy->mnt_ns) {
+        /*if (!strncmp(q->name,"sysrq-trigger",13)) {
+            printk(KERN_CRIT "do_last sysrqtrigger: %d",op->open_flag);
+        }*/
         op->open_flag &= ~O_CREAT;
     }
     jprobe_return();
