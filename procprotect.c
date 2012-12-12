@@ -46,6 +46,7 @@ MODULE_VERSION(VERSION_STR);
 
 struct procprotect_ctx {
     struct inode **inode;
+    struct qstr *q;
     struct path *path;
     int flags;
 };
@@ -111,17 +112,10 @@ static int lookup_fast_ret(struct kretprobe_instance *ri, struct pt_regs *regs)
     if (ret==0) {
         /* The kernel is going to honor the request. Here's where we step in */
         struct inode *inode = *(ctx->inode);
-        printk(KERN_CRIT "Inode=%u",inode->i_ino);
         if (!run_acl(inode->i_ino)) {
             if (current->nsproxy->mnt_ns!=init_task.nsproxy->mnt_ns) {
                 regs->ax = -EPERM;
             }
-        }
-    }
-    else if (ret==1) {
-        if (!printed) {
-            dump_stack();
-            printed=1;
         }
     }
 
@@ -139,10 +133,13 @@ static int lookup_slow_entry(struct kretprobe_instance *ri, struct pt_regs *regs
     struct dentry *parent = nd->path.dentry;
     struct inode *pinode = parent->d_inode;
 
-    printk(KERN_CRIT "Entered lookup slow");
+    
+
     if (pinode->i_sb->s_magic == PROC_SUPER_MAGIC
             && current->nsproxy->mnt_ns!=init_task.nsproxy->mnt_ns) {	
+        
         ctx = (struct procprotect_ctx *) ri->data;
+        ctx->q = q;
         ctx->flags = nd->flags;
         ctx->path = p;
         ret = 0;
@@ -163,7 +160,6 @@ static int lookup_slow_ret(struct kretprobe_instance *ri, struct pt_regs *regs)
         /* The kernel is going to honor the request. Here's where we step in */
         struct path *p = ctx->path;
         struct inode *inode = p->dentry->d_inode;
-        printk(KERN_CRIT "Looking at inode %x",inode);
         if (!run_acl(inode->i_ino)) {
             if (current->nsproxy->mnt_ns!=init_task.nsproxy->mnt_ns) {
                 regs->ax = -EPERM;
@@ -240,6 +236,7 @@ static void add_entry(char *pathname) {
 static void __exit procprotect_exit(void)
 {
     unregister_kretprobe(&fast_probe);
+    unregister_kretprobe(&slow_probe);
 	unregister_jprobe(&dolast_probe);
     struct hlist_node *n;
     struct acl_entry *entry;
@@ -300,14 +297,12 @@ static int __init procprotect_init(void)
         return -1;
     }
 
-    /*
     slow_probe.kp.addr = 
         (kprobe_opcode_t *) kallsyms_lookup_name("lookup_slow");
     if (!slow_probe.kp.addr) {
         printk("Couldn't find %s to plant kretprobe\n", "lookup_slow");
         return -1;
     }
-    */
 
     dolast_probe.kp.addr = 
         (kprobe_opcode_t *) kallsyms_lookup_name("do_last");
@@ -326,8 +321,16 @@ static int __init procprotect_init(void)
         printk("register_kretprobe failed, returned %d\n", ret);
         return -1;
     }
+
     printk("Planted kretprobe at %p, handler addr %p\n",
             fast_probe.kp.addr, fast_probe.handler);
+
+    if ((ret = register_kretprobe(&slow_probe)) <0) {
+        printk("register_kretprobe failed, returned %d\n", ret);
+        return -1;
+    }
+    printk("Planted kretprobe at %p, handler addr %p\n",
+            slow_probe.kp.addr, slow_probe.handler);
 
     proc_entry = create_proc_entry("procprotect", 0644, NULL);
     proc_entry->write_proc = procfile_write;
