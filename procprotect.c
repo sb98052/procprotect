@@ -283,10 +283,11 @@ int procfile_write(struct file *file, const char *buffer, unsigned long count, v
 
 static int __init procprotect_init(void)
 {
-    printk("Procprotect: starting procprotect version %s with ACLs at path %s.\n",
-            VERSION_STR, aclpath);
     int ret;
     int i;
+
+    printk("Procprotect: starting procprotect version %s with ACLs at path %s.\n",
+            VERSION_STR, aclpath);
 
     for(i=0;i<HASH_SIZE;i++) {
         INIT_HLIST_HEAD(&procprotect_hash[i]);
