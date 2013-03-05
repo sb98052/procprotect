@@ -2,6 +2,7 @@
 #include <linux/moduleparam.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/version.h>
 #include <linux/fs_struct.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
