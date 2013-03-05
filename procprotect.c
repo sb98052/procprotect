@@ -33,7 +33,12 @@
 #error "This code does not support your architecture"
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,8,0)
 static char *aclpath = "procprotect";
+#else
+static char *aclpath __devinitdata = "procprotect";
+#endif
+
 static struct qstr aclqpath;
 
 module_param(aclpath, charp, 0);
