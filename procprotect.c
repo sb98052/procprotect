@@ -33,7 +33,7 @@
 #error "This code does not support your architecture"
 #endif
 
-static char *aclpath __devinitdata = "procprotect";
+static char *aclpath = "procprotect";
 static struct qstr aclqpath;
 
 module_param(aclpath, charp, 0);
