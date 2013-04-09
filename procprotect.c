@@ -157,8 +157,12 @@ static int lookup_slow_entry(struct kretprobe_instance *ri, struct pt_regs *regs
 
 static int lookup_slow_ret(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
-    struct procprotect_ctx *ctx = (struct procprotect_ctx *) ri->data;
-    int ret = regs->ax;
+    struct procprotect_ctx *ctx;
+    int ret;
+
+    if (!ri) {/* Race condition?*/ return 0;}
+    ctx = (struct procprotect_ctx *) ri->data;
+    ret = regs->ax;
 
     if (ret==0) {
         /* The kernel is going to honor the request. Here's where we step in */
