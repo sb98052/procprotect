@@ -162,40 +162,17 @@ static int lookup_slow_ret(struct kretprobe_instance *ri, struct pt_regs *regs)
     struct procprotect_ctx *ctx;
     int ret;
 
-    if (!ri) {printk(KERN_CRIT "ri is 0x0");/* Race condition?*/ return 0;}
+    if (!ri || !ri->data) {return 0;}
     ctx = (struct procprotect_ctx *) ri->data;
-
-    if (!regs) {
-        if (!print_once++) {
-            printk(KERN_CRIT "Regs is 0x0");
-        }
-        return 0;
-    }
 
     ret = regs->ax;
 
     if (ret==0) {
         struct path *p = ctx->path;
-        if (!p) {
-            if (!print_once++) {
-                printk(KERN_CRIT "P is 0x0");
-            }
+        if (!p || !p->dentry || !p->dentry->d_inode /* This last check was responsible for the f18 bug*/) {
             return 0;
         }
-        if (!p->dentry) {
-            if (!print_once++) {
-                printk(KERN_CRIT "P->dentry is 0x0");
-            }
-            return 0;
-        }
-
         struct inode *inode = p->dentry->d_inode;
-        if (!inode) {
-            if (!print_once++) {
-                printk(KERN_CRIT "inode is 0x0");
-            }
-            return 0;
-        }
         if (!run_acl(inode->i_ino)) {
             regs->ax = -EPERM;
         }
