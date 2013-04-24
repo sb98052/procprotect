@@ -1,6 +1,6 @@
 %define name procprotect
 %define version 0.3
-%define taglevel 2
+%define taglevel 3
 
 ### legacy from locally-built kernels, used to define these
 # kernel_release : 1.fc16  (24 is then the planetlab taglevel)
@@ -66,6 +66,11 @@ rm -rf $RPM_BUILD_ROOT
 %postun
 
 %changelog
+* Wed Apr 24 2013 Sapan Bhatia <sapanb@cs.princeton.edu> - procprotect-0.3-3
+- - Support for arbitrating writes to entries in /proc
+- - Compatibility fixes to support kernel 3.8
+- - Fixed a slippery race condition that may have been responsible an for intermittent kernel crash, and was causing fedora 18 build tests to fail
+
 * Wed Apr 24 2013 Sapan Bhatia <sapanb@cs.princeton.edu> - procprotect-0.3-2
 
 * Thu Feb 21 2013 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - procprotect-0.3-1
