@@ -1,6 +1,6 @@
 %define name procprotect
 %define version 0.3
-%define taglevel 1
+%define taglevel 2
 
 ### legacy from locally-built kernels, used to define these
 # kernel_release : 1.fc16  (24 is then the planetlab taglevel)
@@ -66,6 +66,8 @@ rm -rf $RPM_BUILD_ROOT
 %postun
 
 %changelog
+* Wed Apr 24 2013 Sapan Bhatia <sapanb@cs.princeton.edu> - procprotect-0.3-2
+
 * Thu Feb 21 2013 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - procprotect-0.3-1
 - changes for kernel 3.6.2
 
