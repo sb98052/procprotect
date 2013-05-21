@@ -1,6 +1,6 @@
 %define name procprotect
 %define version 0.3
-%define taglevel 3
+%define taglevel 4
 
 ### legacy from locally-built kernels, used to define these
 # kernel_release : 1.fc16  (24 is then the planetlab taglevel)
@@ -66,6 +66,9 @@ rm -rf $RPM_BUILD_ROOT
 %postun
 
 %changelog
+* Tue May 21 2013 Sapan Bhatia <sapanb@cs.princeton.edu> - procprotect-0.3-4
+- Compatibility with kernel 3.9
+
 * Wed Apr 24 2013 Sapan Bhatia <sapanb@cs.princeton.edu> - procprotect-0.3-3
 - - Support for arbitrating writes to entries in /proc
 - - Compatibility fixes to support kernel 3.8
