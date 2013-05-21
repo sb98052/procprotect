@@ -95,14 +95,13 @@ static int lookup_fast_entry(struct kretprobe_instance *ri, struct pt_regs *regs
     int ret = -1;
     struct procprotect_ctx *ctx;
     struct nameidata *nd = (struct nameidata *) regs->di;
-    struct qstr *q = (struct qstr *) regs->si;
     struct dentry *parent = nd->path.dentry;
     struct inode *pinode = parent->d_inode;
 
     if (pinode->i_sb->s_magic == PROC_SUPER_MAGIC
             && current->nsproxy->mnt_ns!=init_task.nsproxy->mnt_ns) {	
         ctx = (struct procprotect_ctx *) ri->data;
-        ctx->inode = regs->cx;
+        ctx->inode = regs->dx;
         ctx->flags = nd->flags;
         ret = 0;
     }
@@ -136,8 +135,7 @@ static int lookup_slow_entry(struct kretprobe_instance *ri, struct pt_regs *regs
     int ret = -1;
     struct procprotect_ctx *ctx;
     struct nameidata *nd = (struct nameidata *) regs->di;
-    struct qstr *q = (struct qstr *) regs->si;
-    struct path *p = (struct path *) regs->dx;
+    struct path *p = (struct path *) regs->si;
 
     struct dentry *parent = nd->path.dentry;
     struct inode *pinode = parent->d_inode;
@@ -148,7 +146,7 @@ static int lookup_slow_entry(struct kretprobe_instance *ri, struct pt_regs *regs
             && current->nsproxy->mnt_ns!=init_task.nsproxy->mnt_ns) {	
         
         ctx = (struct procprotect_ctx *) ri->data;
-        ctx->q = q;
+        ctx->q = &nd->last;
         ctx->flags = nd->flags;
         ctx->path = p;
         ret = 0;
