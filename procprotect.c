@@ -34,11 +34,7 @@
 #error "This code does not support your architecture"
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,8,0)
 static char *aclpath = "procprotect";
-#else
-static char *aclpath __devinitdata = "procprotect";
-#endif
 
 static struct qstr aclqpath;
 
@@ -69,14 +65,8 @@ struct hlist_head procprotect_hash[HASH_SIZE];
 struct proc_dir_entry *proc_entry;
 
 static int run_acl(unsigned long ino) {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,9,0)
-    struct hlist_node *n;
-#endif
     struct acl_entry *entry;
     hlist_for_each_entry_rcu(entry, 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,9,0)
-			     n, 
-#endif
 			     &procprotect_hash[ino & (HASH_SIZE-1)],
 			     hlist) {
         if (entry->ino==ino) {
@@ -257,17 +247,11 @@ static void __exit procprotect_exit(void)
     unregister_kretprobe(&fast_probe);
     unregister_kretprobe(&slow_probe);
 	unregister_jprobe(&dolast_probe);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,9,0)
-    struct hlist_node *n;
-#endif
     struct acl_entry *entry;
     int i;
 
     for (i=0;i<HASH_SIZE;i++) {
         hlist_for_each_entry_rcu(entry, 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,9,0)
-				 n, 
-#endif
 				 &procprotect_hash[i],
 				 hlist) {
             kfree(entry);
