@@ -345,6 +345,7 @@ static int __init procprotect_init(void)
     proc_entry = create_proc_entry("procprotect", 0644, NULL);
     proc_entry->write_proc = procfile_write;
 
+    add_entry("/proc/sysrq-trigger");
     return ret;
 }
 
