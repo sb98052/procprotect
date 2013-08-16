@@ -28,6 +28,12 @@
 #include <linux/kallsyms.h>
 #include <linux/nsproxy.h>
 
+#include <linux/magic.h>
+#include <linux/slab.h>
+#include <linux/module.h>	/* Specifically, a module */
+#include <linux/kernel.h>	/* We're doing kernel work */
+#include <linux/proc_fs.h>	/* Necessary because we use the proc fs */
+
 #define VERSION_STR "0.0.1"
 
 #ifndef CONFIG_X86_64
@@ -129,8 +135,6 @@ static int lookup_slow_entry(struct kretprobe_instance *ri, struct pt_regs *regs
 
     struct dentry *parent = nd->path.dentry;
     struct inode *pinode = parent->d_inode;
-
-    
 
     if (pinode->i_sb->s_magic == PROC_SUPER_MAGIC
             && current->nsproxy->mnt_ns!=init_task.nsproxy->mnt_ns) {	
@@ -246,7 +250,7 @@ static void __exit procprotect_exit(void)
 {
     unregister_kretprobe(&fast_probe);
     unregister_kretprobe(&slow_probe);
-	unregister_jprobe(&dolast_probe);
+    unregister_jprobe(&dolast_probe);    
     struct acl_entry *entry;
     int i;
 
@@ -284,6 +288,11 @@ int procfile_write(struct file *file, const char *buffer, unsigned long count, v
     return count;
 }
 
+static const struct file_operations procprotect_fops = {
+    .owner = THIS_MODULE,
+    .write = procfile_write
+};
+                          
 static int __init procprotect_init(void)
 {
     int ret;
@@ -313,6 +322,7 @@ static int __init procprotect_init(void)
     }
     fast_probe.kp.addr = 
         (kprobe_opcode_t *) kallsyms_lookup_name("lookup_fast");
+
     if (!fast_probe.kp.addr) {
         printk("Couldn't find %s to plant kretprobe\n", "lookup_fast");
         return -1;
@@ -320,6 +330,7 @@ static int __init procprotect_init(void)
 
     slow_probe.kp.addr = 
         (kprobe_opcode_t *) kallsyms_lookup_name("lookup_slow");
+
     if (!slow_probe.kp.addr) {
         printk("Couldn't find %s to plant kretprobe\n", "lookup_slow");
         return -1;
@@ -342,8 +353,7 @@ static int __init procprotect_init(void)
     printk("Planted kretprobe at %p, handler addr %p\n",
             slow_probe.kp.addr, slow_probe.handler);
 
-    proc_entry = create_proc_entry("procprotect", 0644, NULL);
-    proc_entry->write_proc = procfile_write;
+    proc_entry = proc_create("procprotect", 0644, NULL, &procprotect_fops);
 
     add_entry("/proc/sysrq-trigger");
     return ret;
