@@ -18,5 +18,4 @@ clean:
 
 install:
 	install -D -m 755 procprotect.ko /lib/modules/$(KVER)/net/procprotect/procprotect.ko
-	mkdir -p /etc/modules-load.d
-	install -m 644 procprotect.conf /etc/modules-load.d/procprotect.conf
+	install -m 644 procprotect.service /usr/lib/systemd/system/procprotect.service
