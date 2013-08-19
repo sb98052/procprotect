@@ -64,7 +64,7 @@ struct acl_entry {
     struct hlist_node hlist;
 };
 
-#define HASH_SIZE (1<<16)
+#define HASH_SIZE (1<<10)
 
 struct hlist_head procprotect_hash[HASH_SIZE];
 
