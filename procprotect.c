@@ -219,6 +219,55 @@ static struct kretprobe slow_probe = {
     .data_size = sizeof(struct procprotect_ctx)
 };
 
+int once_only = 0;
+
+static int init_probes(void) {
+	int ret;
+	dolast_probe.kp.addr = 
+		(kprobe_opcode_t *) kallsyms_lookup_name("do_last");
+
+	if (!dolast_probe.kp.addr) {
+		printk("Couldn't find %s to plant kretprobe\n", "do_last");
+		return -1;
+	}
+
+	if ((ret = register_jprobe(&dolast_probe)) <0) {
+		printk("register_jprobe failed, returned %u\n", ret);
+		return -1;
+	}
+	fast_probe.kp.addr = 
+		(kprobe_opcode_t *) kallsyms_lookup_name("lookup_fast");
+
+	if (!fast_probe.kp.addr) {
+		printk("Couldn't find %s to plant kretprobe\n", "lookup_fast");
+		return -1;
+	}
+
+	slow_probe.kp.addr = 
+		(kprobe_opcode_t *) kallsyms_lookup_name("lookup_slow");
+
+	if (!slow_probe.kp.addr) {
+		printk("Couldn't find %s to plant kretprobe\n", "lookup_slow");
+		return -1;
+	}
+
+	if ((ret = register_kretprobe(&fast_probe)) <0) {
+		printk("register_kretprobe failed, returned %d\n", ret);
+		return -1;
+	}
+
+	printk("Planted kretprobe at %p, handler addr %p\n",
+			fast_probe.kp.addr, fast_probe.handler);
+
+	if ((ret = register_kretprobe(&slow_probe)) <0) {
+		printk("register_kretprobe failed, returned %d\n", ret);
+		return -1;
+	}
+	printk("Planted kretprobe at %p, handler addr %p\n",
+			slow_probe.kp.addr, slow_probe.handler);
+	return 0;
+}
+
 static void add_entry(char *pathname) {
     struct path path;
     if (kern_path(pathname, 0, &path)) {
@@ -243,6 +292,12 @@ static void add_entry(char *pathname) {
             }
         }
     }
+
+	if (!once_only) {
+		once_only=1;
+		if (init_probes()==-1)
+			printk(KERN_CRIT "Could not install procprotect probes. Reload module to retry.");
+	}
 }
 
 
@@ -293,6 +348,7 @@ static const struct file_operations procprotect_fops = {
     .write = procfile_write
 };
                           
+
 static int __init procprotect_init(void)
 {
     int ret;
@@ -305,55 +361,8 @@ static int __init procprotect_init(void)
         INIT_HLIST_HEAD(&procprotect_hash[i]);
     }
 
-    add_entry("/proc/sysrq-trigger");
-
     aclqpath.name = aclpath;
     aclqpath.len = strnlen(aclpath, PATH_MAX);
-
-    dolast_probe.kp.addr = 
-        (kprobe_opcode_t *) kallsyms_lookup_name("do_last");
-
-    if (!dolast_probe.kp.addr) {
-        printk("Couldn't find %s to plant kretprobe\n", "do_last");
-        return -1;
-    }
-
-    if ((ret = register_jprobe(&dolast_probe)) <0) {
-                  printk("register_jprobe failed, returned %u\n", ret);
-                  return -1;
-    }
-    fast_probe.kp.addr = 
-        (kprobe_opcode_t *) kallsyms_lookup_name("lookup_fast");
-
-    if (!fast_probe.kp.addr) {
-        printk("Couldn't find %s to plant kretprobe\n", "lookup_fast");
-        return -1;
-    }
-
-    slow_probe.kp.addr = 
-        (kprobe_opcode_t *) kallsyms_lookup_name("lookup_slow");
-
-    if (!slow_probe.kp.addr) {
-        printk("Couldn't find %s to plant kretprobe\n", "lookup_slow");
-        return -1;
-    }
-
-    
-
-    if ((ret = register_kretprobe(&fast_probe)) <0) {
-        printk("register_kretprobe failed, returned %d\n", ret);
-        return -1;
-    }
-
-    printk("Planted kretprobe at %p, handler addr %p\n",
-            fast_probe.kp.addr, fast_probe.handler);
-
-    if ((ret = register_kretprobe(&slow_probe)) <0) {
-        printk("register_kretprobe failed, returned %d\n", ret);
-        return -1;
-    }
-    printk("Planted kretprobe at %p, handler addr %p\n",
-            slow_probe.kp.addr, slow_probe.handler);
 
     proc_entry = proc_create("procprotect", 0644, NULL, &procprotect_fops);
 
