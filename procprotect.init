@@ -1,0 +1,8 @@
+#!/bin/sh
+
+if [ ! -f /proc/procprotect ]; then 
+	echo "Transforward kernel module not loaded"
+else
+	echo "sysrq-trigger" > /proc/procprotect
+fi
+

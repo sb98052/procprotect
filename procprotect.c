@@ -293,11 +293,6 @@ static void add_entry(char *pathname) {
         }
     }
 
-	if (!once_only) {
-		once_only=1;
-		if (init_probes()==-1)
-			printk(KERN_CRIT "Could not install procprotect probes. Reload module to retry.");
-	}
 }
 
 
@@ -339,6 +334,12 @@ int procfile_write(struct file *file, const char *buffer, unsigned long count, v
         pathname[count]='\0';
 
     add_entry(pathname);	
+		
+	if (!once_only) {
+		once_only=1;
+		if (init_probes()==-1)
+			printk(KERN_CRIT "Could not install procprotect probes. Reload module to retry.");
+	}
     printk(KERN_CRIT "Length of buffer=%d",strlen(pathname));
     return count;
 }
