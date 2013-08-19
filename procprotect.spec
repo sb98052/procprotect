@@ -1,6 +1,6 @@
 %define name procprotect
-%define version 0.3
-%define taglevel 4
+%define version 0.4
+%define taglevel 0
 
 ### legacy from locally-built kernels, used to define these
 # kernel_release : 1.fc16  (24 is then the planetlab taglevel)
