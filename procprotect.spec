@@ -52,6 +52,9 @@ make -C %{kernelpath} V=1 M=$(pwd) modules
 install -D -m 755 procprotect.ko $RPM_BUILD_ROOT/lib/modules/%{kernel_id}/kernel/net/procprotect/procprotect.ko
 mkdir -p $RPM_BUILD_ROOT/etc/modules-load.d
 install -m 644 procprotect.conf $RPM_BUILD_ROOT/etc/modules-load.d/procprotect.conf
+mkdir -p $RPM_BUILD_ROOT/usr/lib/systemd/system
+install -m 644 procprotect.service $RPM_BUILD_ROOT/usr/lib/systemd/system/procprotect.service
+install -m 755 procprotect.init $RPM_BUILD_ROOT/usr/sbin/procprotect.init
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -59,9 +62,12 @@ rm -rf $RPM_BUILD_ROOT
 %files
 /lib/modules/%{kernel_id}
 /etc/modules-load.d/procprotect.conf
+/usr/sbin/procprotect.init
+/usr/lib/systemd/system/procprotect.service
 
 %post
 /sbin/depmod -a
+/bin/systemctl enable procprotect.service
 
 %postun
 
