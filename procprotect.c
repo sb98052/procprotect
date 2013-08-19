@@ -72,7 +72,7 @@ struct proc_dir_entry *proc_entry;
 
 static int run_acl(unsigned long ino) {
     struct acl_entry *entry;
-    hlist_for_each_entry_rcu(entry, 
+    hlist_for_each_entry_rcu_notrace(entry, 
 			     &procprotect_hash[ino & (HASH_SIZE-1)],
 			     hlist) {
         if (entry->ino==ino) {
@@ -305,6 +305,8 @@ static int __init procprotect_init(void)
         INIT_HLIST_HEAD(&procprotect_hash[i]);
     }
 
+    add_entry("/proc/sysrq-trigger");
+
     aclqpath.name = aclpath;
     aclqpath.len = strnlen(aclpath, PATH_MAX);
 
@@ -355,7 +357,6 @@ static int __init procprotect_init(void)
 
     proc_entry = proc_create("procprotect", 0644, NULL, &procprotect_fops);
 
-    add_entry("/proc/sysrq-trigger");
     return ret;
 }
 
