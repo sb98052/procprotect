@@ -1,6 +1,6 @@
 %define name procprotect
 %define version 0.4
-%define taglevel 0
+%define taglevel 1
 
 ### legacy from locally-built kernels, used to define these
 # kernel_release : 1.fc16  (24 is then the planetlab taglevel)
@@ -66,6 +66,9 @@ rm -rf $RPM_BUILD_ROOT
 %postun
 
 %changelog
+* Mon Aug 19 2013 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - procprotect-0.4-1
+- working version with kernels 3.10
+
 * Tue May 21 2013 Sapan Bhatia <sapanb@cs.princeton.edu> - procprotect-0.3-4
 - Compatibility with kernel 3.9
 
