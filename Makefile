@@ -7,7 +7,7 @@ ARCH=$(shell uname -m)
 DIST=fc18
 
 ifeq ($(wildcard /lib/modules/$(KVER)/build),) 
-	KVER=3.10.6-100.$(DIST).$(ARCH)
+	KVER=3.11.4-101.$(DIST).$(ARCH)
 endif
 
 all:

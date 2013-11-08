@@ -94,11 +94,13 @@ static int lookup_fast_entry(struct kretprobe_instance *ri, struct pt_regs *regs
     struct dentry *parent;
     struct inode *pinode;
 	
-	if (!nd) return;
+	if (!nd) return ret;
 	parent = nd->path.dentry;
 
-	if (!parent) return;
+	if (!parent) return ret;
 	pinode = parent->d_inode;
+
+	if (!pinode || !pinode->i_sb || !current || !current->nsproxy) return ret;
 
     if (pinode->i_sb->s_magic == PROC_SUPER_MAGIC
             && current->nsproxy->mnt_ns!=init_task.nsproxy->mnt_ns) {	
