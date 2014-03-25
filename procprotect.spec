@@ -7,6 +7,9 @@
 # kernel_version : 3.3.7
 # kernel_arch :    i686 | x86_64
 
+# when no custom kernel is being built, kernel_version is defined but empty
+%define _with_planetlab_kernel %{?kernel_version:1}%{!?kernel_version:0}
+%if ! %{_with_planetlab_kernel}
 # compute this with "rpm -q --qf .. kernel-devel" when with the stock kernel
 # this line below
 #%define module_release %( rpm -q --qf "%{version}" kernel-headers )
@@ -17,6 +20,7 @@
 %define kernel_version %( rpm -q --qf %{percent}%{braop}version%{bracl} kernel-headers )
 %define kernel_release %( rpm -q --qf %{percent}%{braop}release%{bracl} kernel-headers )
 %define kernel_arch %( rpm -q --qf %{percent}%{braop}arch%{bracl} kernel-headers )
+%endif
 
 # this is getting really a lot of stuff, could be made simpler probably
 %define release %{kernel_version}.%{kernel_release}.%{taglevel}%{?pldistro:.%{pldistro}}%{?date:.%{date}}
