@@ -68,7 +68,7 @@ rm -rf $RPM_BUILD_ROOT
 /usr/lib/systemd/system/procprotect.service
 
 %post
-/sbin/depmod -a
+/sbin/depmod -a %{kernel_id}
 /bin/systemctl enable procprotect.service
 
 %postun
