@@ -50,7 +50,7 @@ ACLs for protecting entries in the proc filesystem.
 %setup -q
 
 %build
-make -C %{kernelpath} V=1 M=$(pwd) modules
+make -C %{kernelpath} V=1 M=$(pwd) KVER=%{kernel_id} modules
 
 %install
 install -D -m 755 procprotect.ko $RPM_BUILD_ROOT/lib/modules/%{kernel_id}/kernel/net/procprotect/procprotect.ko
