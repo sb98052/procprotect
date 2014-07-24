@@ -42,6 +42,7 @@ License: GPL
 Group: System Environment/Kernel
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot
 Source0: procprotect-%{version}.tar.gz
+Requires: kernel = %{kernel_version}-%{kernel_release}
 
 %description
 ACLs for protecting entries in the proc filesystem.
