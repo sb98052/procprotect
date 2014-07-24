@@ -105,7 +105,7 @@ static int lookup_fast_entry(struct kretprobe_instance *ri, struct pt_regs *regs
     if (pinode->i_sb->s_magic == PROC_SUPER_MAGIC
             && current->nsproxy->mnt_ns!=init_task.nsproxy->mnt_ns) {	
         ctx = (struct procprotect_ctx *) ri->data;
-        ctx->inode = regs->dx;
+        ctx->inode = (struct inode **)regs->dx;
         ctx->flags = nd->flags;
         ret = 0;
     }
@@ -143,9 +143,9 @@ static int lookup_slow_entry(struct kretprobe_instance *ri, struct pt_regs *regs
     struct dentry *parent;
 	struct inode *pinode;
 
-	if (!nd) return;
+	if (!nd) return ret;
 	parent = nd->path.dentry;
-    if (!parent) return;
+    if (!parent) return ret;
 	pinode= parent->d_inode;
 
     if (pinode->i_sb->s_magic == PROC_SUPER_MAGIC
@@ -164,11 +164,12 @@ static int lookup_slow_entry(struct kretprobe_instance *ri, struct pt_regs *regs
 /* The entry hook ensures that the return hook is only called for
    accesses to /proc */
 
-static int print_once = 0;
+/*static int print_once = 0;*/
 
 static int lookup_slow_ret(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
     struct procprotect_ctx *ctx;
+    struct inode *inode;
     int ret;
 
     if (!ri || !ri->data) {return 0;}
@@ -181,7 +182,7 @@ static int lookup_slow_ret(struct kretprobe_instance *ri, struct pt_regs *regs)
         if (!p || !p->dentry || !p->dentry->d_inode /* This last check was responsible for the f18 bug*/) {
             return 0;
         }
-        struct inode *inode = p->dentry->d_inode;
+        inode = p->dentry->d_inode;
         if (!run_acl(inode->i_ino)) {
             regs->ax = -EPERM;
         }
@@ -201,7 +202,7 @@ static struct file *do_last_probe(struct nameidata *nd, struct path *path, struc
                          struct open_flags *op, const char *pathname) {
     struct dentry *parent = nd->path.dentry;
     struct inode *pinode = parent->d_inode;
-    struct qstr *q = &nd->last;
+    /*struct qstr *q = &nd->last;*/
 
     
     if (pinode->i_sb->s_magic == PROC_SUPER_MAGIC && current->nsproxy->mnt_ns!=init_task.nsproxy->mnt_ns) {
@@ -211,22 +212,23 @@ static struct file *do_last_probe(struct nameidata *nd, struct path *path, struc
         op->open_flag &= ~O_CREAT;
     }
     jprobe_return();
+    return file;
 }
 
 static struct jprobe dolast_probe = {
-	.entry = (kprobe_opcode_t *) do_last_probe
+	.entry = do_last_probe
 };
 
 static struct kretprobe fast_probe = {
-    .entry_handler = (kprobe_opcode_t *) lookup_fast_entry,
-    .handler = (kprobe_opcode_t *) lookup_fast_ret,
+    .entry_handler = lookup_fast_entry,
+    .handler = lookup_fast_ret,
     .maxactive = 20,
     .data_size = sizeof(struct procprotect_ctx)
 };
 
 static struct kretprobe slow_probe = {
-    .entry_handler = (kprobe_opcode_t *) lookup_slow_entry,
-    .handler = (kprobe_opcode_t *) lookup_slow_ret,
+    .entry_handler = lookup_slow_entry,
+    .handler = lookup_slow_ret,
     .maxactive = 20,
     .data_size = sizeof(struct procprotect_ctx)
 };
@@ -310,11 +312,12 @@ static void add_entry(char *pathname) {
 
 static void __exit procprotect_exit(void)
 {
+    struct acl_entry *entry;
+    int i;
+
     unregister_kretprobe(&fast_probe);
     unregister_kretprobe(&slow_probe);
     unregister_jprobe(&dolast_probe);    
-    struct acl_entry *entry;
-    int i;
 
     for (i=0;i<HASH_SIZE;i++) {
         hlist_for_each_entry_rcu(entry, 
@@ -330,7 +333,7 @@ static void __exit procprotect_exit(void)
 
 
 
-int procfile_write(struct file *file, const char *buffer, unsigned long count, void *data) {		
+ssize_t procfile_write(struct file *file, const char *buffer, size_t count, loff_t *data) {		
     char pathname[PATH_MAX];
 
     if (current->nsproxy->mnt_ns!=init_task.nsproxy->mnt_ns)
@@ -352,7 +355,7 @@ int procfile_write(struct file *file, const char *buffer, unsigned long count, v
 		if (init_probes()==-1)
 			printk(KERN_CRIT "Could not install procprotect probes. Reload module to retry.");
 	}
-    printk(KERN_CRIT "Length of buffer=%d",strlen(pathname));
+    printk(KERN_CRIT "Length of buffer=%d",(int)strlen(pathname));
     return count;
 }
 
@@ -364,7 +367,7 @@ static const struct file_operations procprotect_fops = {
 
 static int __init procprotect_init(void)
 {
-    int ret;
+    int ret = 0;
     int i;
 
     printk("Procprotect: starting procprotect version %s with ACLs at path %s.\n",
