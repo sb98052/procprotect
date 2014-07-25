@@ -53,15 +53,15 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION(VERSION_STR);
 
 struct procprotect_ctx {
-    struct inode **inode;
-    struct qstr *q;
-    struct path *path;
-    int flags;
+	struct inode **inode;
+	struct qstr *q;
+	struct path *path;
+	int flags;
 };
 
 struct acl_entry {
-    unsigned int ino;
-    struct hlist_node hlist;
+	unsigned int ino;
+	struct hlist_node hlist;
 };
 
 #define HASH_SIZE (1<<10)
@@ -71,15 +71,15 @@ struct hlist_head procprotect_hash[HASH_SIZE];
 struct proc_dir_entry *proc_entry;
 
 static int run_acl(unsigned long ino) {
-    struct acl_entry *entry;
-    hlist_for_each_entry_rcu_notrace(entry, 
-			     &procprotect_hash[ino & (HASH_SIZE-1)],
-			     hlist) {
-        if (entry->ino==ino) {
-            return 0;
-        }
-    }
-    return 1;
+	struct acl_entry *entry;
+	hlist_for_each_entry_rcu_notrace(entry, 
+				 &procprotect_hash[ino & (HASH_SIZE-1)],
+				 hlist) {
+		if (entry->ino==ino) {
+			return 0;
+		}
+	}
+	return 1;
 }
 
 /*
@@ -88,11 +88,11 @@ static int run_acl(unsigned long ino) {
    - Save the first argument, which is in a register, for consideration in the return hook
    */
 static int lookup_fast_entry(struct kretprobe_instance *ri, struct pt_regs *regs) {
-    int ret = -1;
-    struct procprotect_ctx *ctx;
-    struct nameidata *nd = (struct nameidata *) regs->di;
-    struct dentry *parent;
-    struct inode *pinode;
+	int ret = -1;
+	struct procprotect_ctx *ctx;
+	struct nameidata *nd = (struct nameidata *) regs->di;
+	struct dentry *parent;
+	struct inode *pinode;
 	
 	if (!nd) return ret;
 	parent = nd->path.dentry;
@@ -102,15 +102,15 @@ static int lookup_fast_entry(struct kretprobe_instance *ri, struct pt_regs *regs
 
 	if (!pinode || !pinode->i_sb || !current || !current->nsproxy) return ret;
 
-    if (pinode->i_sb->s_magic == PROC_SUPER_MAGIC
-            && current->nsproxy->mnt_ns!=init_task.nsproxy->mnt_ns) {	
-        ctx = (struct procprotect_ctx *) ri->data;
-        ctx->inode = (struct inode **)regs->dx;
-        ctx->flags = nd->flags;
-        ret = 0;
-    }
+	if (pinode->i_sb->s_magic == PROC_SUPER_MAGIC
+			&& current->nsproxy->mnt_ns!=init_task.nsproxy->mnt_ns) {	
+		ctx = (struct procprotect_ctx *) ri->data;
+		ctx->inode = (struct inode **)regs->dx;
+		ctx->flags = nd->flags;
+		ret = 0;
+	}
 
-    return ret;
+	return ret;
 }
 
 /* The entry hook ensures that the return hook is only called for
@@ -120,45 +120,45 @@ int printed=0;
 
 static int lookup_fast_ret(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
-    struct procprotect_ctx *ctx = (struct procprotect_ctx *) ri->data;
-    int ret = regs->ax;
+	struct procprotect_ctx *ctx = (struct procprotect_ctx *) ri->data;
+	int ret = regs->ax;
 
-    if (ret==0) {
-        /* The kernel is going to honor the request. Here's where we step in */
-        struct inode *inode = *(ctx->inode);
-        if (!run_acl(inode->i_ino)) {
-            regs->ax = -EPERM;
-        }
-    }
+	if (ret==0) {
+		/* The kernel is going to honor the request. Here's where we step in */
+		struct inode *inode = *(ctx->inode);
+		if (!run_acl(inode->i_ino)) {
+			regs->ax = -EPERM;
+		}
+	}
 
 
-    return 0;
+	return 0;
 }
 
 static int lookup_slow_entry(struct kretprobe_instance *ri, struct pt_regs *regs) {
-    int ret = -1;
-    struct procprotect_ctx *ctx;
-    struct nameidata *nd = (struct nameidata *) regs->di;
-    struct path *p = (struct path *) regs->si;
-    struct dentry *parent;
+	int ret = -1;
+	struct procprotect_ctx *ctx;
+	struct nameidata *nd = (struct nameidata *) regs->di;
+	struct path *p = (struct path *) regs->si;
+	struct dentry *parent;
 	struct inode *pinode;
 
 	if (!nd) return ret;
 	parent = nd->path.dentry;
-    if (!parent) return ret;
+	if (!parent) return ret;
 	pinode= parent->d_inode;
 
-    if (pinode->i_sb->s_magic == PROC_SUPER_MAGIC
-            && current->nsproxy->mnt_ns!=init_task.nsproxy->mnt_ns) {	
-        
-        ctx = (struct procprotect_ctx *) ri->data;
-        ctx->q = &nd->last;
-        ctx->flags = nd->flags;
-        ctx->path = p;
-        ret = 0;
-    }
+	if (pinode->i_sb->s_magic == PROC_SUPER_MAGIC
+			&& current->nsproxy->mnt_ns!=init_task.nsproxy->mnt_ns) {	
+		
+		ctx = (struct procprotect_ctx *) ri->data;
+		ctx->q = &nd->last;
+		ctx->flags = nd->flags;
+		ctx->path = p;
+		ret = 0;
+	}
 
-    return ret;
+	return ret;
 }
 
 /* The entry hook ensures that the return hook is only called for
@@ -168,27 +168,27 @@ static int lookup_slow_entry(struct kretprobe_instance *ri, struct pt_regs *regs
 
 static int lookup_slow_ret(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
-    struct procprotect_ctx *ctx;
-    struct inode *inode;
-    int ret;
+	struct procprotect_ctx *ctx;
+	struct inode *inode;
+	int ret;
 
-    if (!ri || !ri->data) {return 0;}
-    ctx = (struct procprotect_ctx *) ri->data;
+	if (!ri || !ri->data) {return 0;}
+	ctx = (struct procprotect_ctx *) ri->data;
 
-    ret = regs->ax;
+	ret = regs->ax;
 
-    if (ret==0) {
-        struct path *p = ctx->path;
-        if (!p || !p->dentry || !p->dentry->d_inode /* This last check was responsible for the f18 bug*/) {
-            return 0;
-        }
-        inode = p->dentry->d_inode;
-        if (!run_acl(inode->i_ino)) {
-            regs->ax = -EPERM;
-        }
-    }
+	if (ret==0) {
+		struct path *p = ctx->path;
+		if (!p || !p->dentry || !p->dentry->d_inode /* This last check was responsible for the f18 bug*/) {
+			return 0;
+		}
+		inode = p->dentry->d_inode;
+		if (!run_acl(inode->i_ino)) {
+			regs->ax = -EPERM;
+		}
+	}
 
-    return 0;
+	return 0;
 }
 
 struct open_flags {
@@ -199,20 +199,20 @@ struct open_flags {
 };
 
 static struct file *do_last_probe(struct nameidata *nd, struct path *path, struct file *file,
-                         struct open_flags *op, const char *pathname) {
-    struct dentry *parent = nd->path.dentry;
-    struct inode *pinode = parent->d_inode;
-    /*struct qstr *q = &nd->last;*/
+						 struct open_flags *op, const char *pathname) {
+	struct dentry *parent = nd->path.dentry;
+	struct inode *pinode = parent->d_inode;
+	/*struct qstr *q = &nd->last;*/
 
-    
-    if (pinode->i_sb->s_magic == PROC_SUPER_MAGIC && current->nsproxy->mnt_ns!=init_task.nsproxy->mnt_ns) {
-        /*if (!strncmp(q->name,"sysrq-trigger",13)) {
-            printk(KERN_CRIT "do_last sysrqtrigger: %d",op->open_flag);
-        }*/
-        op->open_flag &= ~O_CREAT;
-    }
-    jprobe_return();
-    return file;
+	
+	if (pinode->i_sb->s_magic == PROC_SUPER_MAGIC && current->nsproxy->mnt_ns!=init_task.nsproxy->mnt_ns) {
+		/*if (!strncmp(q->name,"sysrq-trigger",13)) {
+			printk(KERN_CRIT "do_last sysrqtrigger: %d",op->open_flag);
+		}*/
+		op->open_flag &= ~O_CREAT;
+	}
+	jprobe_return();
+	return file;
 }
 
 static struct jprobe dolast_probe = {
@@ -220,17 +220,17 @@ static struct jprobe dolast_probe = {
 };
 
 static struct kretprobe fast_probe = {
-    .entry_handler = lookup_fast_entry,
-    .handler = lookup_fast_ret,
-    .maxactive = 20,
-    .data_size = sizeof(struct procprotect_ctx)
+	.entry_handler = lookup_fast_entry,
+	.handler = lookup_fast_ret,
+	.maxactive = 20,
+	.data_size = sizeof(struct procprotect_ctx)
 };
 
 static struct kretprobe slow_probe = {
-    .entry_handler = lookup_slow_entry,
-    .handler = lookup_slow_ret,
-    .maxactive = 20,
-    .data_size = sizeof(struct procprotect_ctx)
+	.entry_handler = lookup_slow_entry,
+	.handler = lookup_slow_ret,
+	.maxactive = 20,
+	.data_size = sizeof(struct procprotect_ctx)
 };
 
 int once_only = 0;
@@ -283,106 +283,113 @@ static int init_probes(void) {
 }
 
 static void add_entry(char *pathname) {
-    struct path path;
-    if (kern_path(pathname, 0, &path)) {
-        printk(KERN_CRIT "Path lookup failed for %s",pathname);
-    }	
-    else {
-        unsigned int ino = path.dentry->d_inode->i_ino;
-        struct acl_entry *entry;
-        entry = kmalloc(GFP_KERNEL, sizeof(struct acl_entry));
-        entry->ino = ino;
+	struct path path;
+	if (kern_path(pathname, 0, &path)) {
+		printk(KERN_CRIT "Path lookup failed for %s",pathname);
+	}	
+	else {
+		unsigned int ino = path.dentry->d_inode->i_ino;
+		struct acl_entry *entry;
+		entry = kmalloc(GFP_KERNEL, sizeof(struct acl_entry));
+		entry->ino = ino;
 
-        if (!entry) {
-            printk(KERN_CRIT "Could not allocate memory for %s",pathname);
-        }
-        else {
-            if (run_acl(ino)) {
-                hlist_add_head_rcu(&entry->hlist,&procprotect_hash[ino&(HASH_SIZE-1)]);
-                printk(KERN_CRIT "Added inode %u",ino);
-            }
-            else {
-                printk(KERN_CRIT "Did not add inode %u, already in list", ino);
-            }
-        }
-    }
+		if (!entry) {
+			printk(KERN_CRIT "Could not allocate memory for %s",pathname);
+		}
+		else {
+			if (run_acl(ino)) {
+				hlist_add_head_rcu(&entry->hlist,&procprotect_hash[ino&(HASH_SIZE-1)]);
+				printk(KERN_CRIT "Added inode %u",ino);
+			}
+			else {
+				printk(KERN_CRIT "Did not add inode %u, already in list", ino);
+			}
+		}
+	}
 
 }
 
 
 static void __exit procprotect_exit(void)
 {
-    struct acl_entry *entry;
-    int i;
+	struct acl_entry *entry;
+	int i;
 
-    unregister_kretprobe(&fast_probe);
-    unregister_kretprobe(&slow_probe);
-    unregister_jprobe(&dolast_probe);    
+	unregister_kretprobe(&fast_probe);
+	unregister_kretprobe(&slow_probe);
+	unregister_jprobe(&dolast_probe);	 
 
-    for (i=0;i<HASH_SIZE;i++) {
-        hlist_for_each_entry_rcu(entry, 
+	for (i=0;i<HASH_SIZE;i++) {
+		hlist_for_each_entry_rcu(entry, 
 				 &procprotect_hash[i],
 				 hlist) {
-            kfree(entry);
-        }
-    }
+			kfree(entry);
+		}
+	}
 
-    remove_proc_entry("procprotect",NULL);
-    printk("Procprotect: Stopped procprotect.\n");
+	remove_proc_entry("procprotect",NULL);
+	printk("Procprotect: Stopped procprotect.\n");
 }
 
 
 
 ssize_t procfile_write(struct file *file, const char *buffer, size_t count, loff_t *data) {		
-    char pathname[PATH_MAX];
+	char *pathname;
+	pathname = (char *) kmalloc(count, GFP_KERNEL);
 
-    if (current->nsproxy->mnt_ns!=init_task.nsproxy->mnt_ns)
-        return -EPERM;
+	if (!pathname) {
+		printk(KERN_CRIT "Could not allocate memory for pathname buffer");
+		return -EFAULT;
+	}
 
-    if (copy_from_user(pathname, buffer, count)) {
-        return -EFAULT;
-    }
-    if (count && (pathname[count-1]==10 || pathname[count-1]==13)) {
-        pathname[count-1]='\0';
-    }
-    else
-        pathname[count]='\0';
+	if (current->nsproxy->mnt_ns!=init_task.nsproxy->mnt_ns)
+		return -EPERM;
 
-    add_entry(pathname);	
+	if (copy_from_user(pathname, buffer, count)) {
+		return -EFAULT;
+	}
+	if (count && (pathname[count-1]==10 || pathname[count-1]==13)) {
+		pathname[count-1]='\0';
+	}
+	else
+		pathname[count]='\0';
+
+	add_entry(pathname);	
 		
 	if (!once_only) {
 		once_only=1;
 		if (init_probes()==-1)
 			printk(KERN_CRIT "Could not install procprotect probes. Reload module to retry.");
 	}
-    printk(KERN_CRIT "Length of buffer=%d",(int)strlen(pathname));
-    return count;
+	printk(KERN_CRIT "Length of buffer=%d",(int)strlen(pathname));
+	kfree(pathname);
+	return count;
 }
 
 static const struct file_operations procprotect_fops = {
-    .owner = THIS_MODULE,
-    .write = procfile_write
+	.owner = THIS_MODULE,
+	.write = procfile_write
 };
-                          
+						  
 
 static int __init procprotect_init(void)
 {
-    int ret = 0;
-    int i;
+	int ret = 0;
+	int i;
 
-    printk("Procprotect: starting procprotect version %s with ACLs at path %s.\n",
-            VERSION_STR, aclpath);
+	printk("Procprotect: starting procprotect version %s with ACLs at path %s.\n",
+			VERSION_STR, aclpath);
 
-    for(i=0;i<HASH_SIZE;i++) {
-        INIT_HLIST_HEAD(&procprotect_hash[i]);
-    }
+	for(i=0;i<HASH_SIZE;i++) {
+		INIT_HLIST_HEAD(&procprotect_hash[i]);
+	}
 
-    aclqpath.name = aclpath;
-    aclqpath.len = strnlen(aclpath, PATH_MAX);
+	aclqpath.name = aclpath;
+	aclqpath.len = strnlen(aclpath, PATH_MAX);
 
-    proc_entry = proc_create("procprotect", 0644, NULL, &procprotect_fops);
+	proc_entry = proc_create("procprotect", 0644, NULL, &procprotect_fops);
 
-    return ret;
+	return ret;
 }
 
 
