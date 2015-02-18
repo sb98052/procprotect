@@ -1,6 +1,6 @@
 %define name procprotect
 %define version 0.4
-%define taglevel 5
+%define taglevel 6
 
 ### legacy from locally-built kernels, used to define these
 # kernel_release : 1.fc16  (24 is then the planetlab taglevel)
@@ -75,6 +75,9 @@ rm -rf $RPM_BUILD_ROOT
 %postun
 
 %changelog
+* Wed Feb 18 2015 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - procprotect-0.4-6
+- moved pathname from stack to heap, and robustified
+
 * Wed Jul 16 2014 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - procprotect-0.4-5
 - tweak for building against a home-made kernel
 
