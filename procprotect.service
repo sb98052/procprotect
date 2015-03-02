@@ -5,7 +5,8 @@ After=syslog.target network.target
 [Service]
 Type=forking
 ExecStart=/usr/sbin/procprotect.init
-ControlGroup=cpu:/
+# it appears this attribute is read-only
+#ControlGroup=cpu:/
 
 [Install]
 WantedBy=multi-user.target
