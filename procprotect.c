@@ -67,9 +67,14 @@ struct acl_entry {
 /*
    Added by Guilherme Sperb Machado <gsm@machados.org>
    According to recent changes in the kernel, the nameidata struct
-   became opaque. So, let's declare it in our implementation.
+   became opaque in 3.19.1. So, let's declare it in our implementation.
+   The 'if' was added based on the kernel version since the code would
+   considerably change, so, this is the quick fix. We're not sure if
+   this module is really necessary with recent versions of LXC, related
+   to /proc isolation.
    Source: https://github.com/torvalds/linux/commit/1f55a6ec940fb45e3edaa52b6e9fc40cf8e18dcb
    */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,19,1)
 struct nameidata {
         struct path     path;
         struct qstr     last;
@@ -81,6 +86,7 @@ struct nameidata {
         unsigned        depth;
         char *saved_names[MAX_NESTED_LINKS + 1];
 };
+#endif
 
 #define HASH_SIZE (1<<10)
 
