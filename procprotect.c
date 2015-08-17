@@ -64,6 +64,30 @@ struct acl_entry {
 	struct hlist_node hlist;
 };
 
+/*
+   Added by Guilherme Sperb Machado <gsm@machados.org>
+   According to recent changes in the kernel, the nameidata struct
+   became opaque in 3.19.1. So, let's declare it in our implementation.
+   The 'if' was added based on the kernel version since the code would
+   considerably change, so, this is the quick fix. We're not sure if
+   this module is really necessary with recent versions of LXC, related
+   to /proc isolation.
+   Source: https://github.com/torvalds/linux/commit/1f55a6ec940fb45e3edaa52b6e9fc40cf8e18dcb
+   */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,19,1)
+struct nameidata {
+        struct path     path;
+        struct qstr     last;
+        struct path     root;
+        struct inode    *inode; /* path.dentry.d_inode */
+        unsigned int    flags;
+        unsigned        seq;
+        int             last_type;
+        unsigned        depth;
+        char *saved_names[MAX_NESTED_LINKS + 1];
+};
+#endif
+
 #define HASH_SIZE (1<<10)
 
 struct hlist_head procprotect_hash[HASH_SIZE];
@@ -72,7 +96,7 @@ struct proc_dir_entry *proc_entry;
 
 static int run_acl(unsigned long ino) {
 	struct acl_entry *entry;
-	hlist_for_each_entry_rcu_notrace(entry, 
+	hlist_for_each_entry_rcu_notrace(entry,
 				 &procprotect_hash[ino & (HASH_SIZE-1)],
 				 hlist) {
 		if (entry->ino==ino) {
@@ -93,7 +117,7 @@ static int lookup_fast_entry(struct kretprobe_instance *ri, struct pt_regs *regs
 	struct nameidata *nd = (struct nameidata *) regs->di;
 	struct dentry *parent;
 	struct inode *pinode;
-	
+
 	if (!nd) return ret;
 	parent = nd->path.dentry;
 
@@ -103,7 +127,7 @@ static int lookup_fast_entry(struct kretprobe_instance *ri, struct pt_regs *regs
 	if (!pinode || !pinode->i_sb || !current || !current->nsproxy) return ret;
 
 	if (pinode->i_sb->s_magic == PROC_SUPER_MAGIC
-			&& current->nsproxy->mnt_ns!=init_task.nsproxy->mnt_ns) {	
+			&& current->nsproxy->mnt_ns!=init_task.nsproxy->mnt_ns) {
 		ctx = (struct procprotect_ctx *) ri->data;
 		ctx->inode = (struct inode **)regs->dx;
 		ctx->flags = nd->flags;
@@ -149,8 +173,8 @@ static int lookup_slow_entry(struct kretprobe_instance *ri, struct pt_regs *regs
 	pinode= parent->d_inode;
 
 	if (pinode->i_sb->s_magic == PROC_SUPER_MAGIC
-			&& current->nsproxy->mnt_ns!=init_task.nsproxy->mnt_ns) {	
-		
+			&& current->nsproxy->mnt_ns!=init_task.nsproxy->mnt_ns) {
+
 		ctx = (struct procprotect_ctx *) ri->data;
 		ctx->q = &nd->last;
 		ctx->flags = nd->flags;
@@ -204,7 +228,7 @@ static struct file *do_last_probe(struct nameidata *nd, struct path *path, struc
 	struct inode *pinode = parent->d_inode;
 	/*struct qstr *q = &nd->last;*/
 
-	
+
 	if (pinode->i_sb->s_magic == PROC_SUPER_MAGIC && current->nsproxy->mnt_ns!=init_task.nsproxy->mnt_ns) {
 		/*if (!strncmp(q->name,"sysrq-trigger",13)) {
 			printk(KERN_CRIT "do_last sysrqtrigger: %d",op->open_flag);
@@ -237,7 +261,7 @@ int once_only = 0;
 
 static int init_probes(void) {
 	int ret;
-	dolast_probe.kp.addr = 
+	dolast_probe.kp.addr =
 		(kprobe_opcode_t *) kallsyms_lookup_name("do_last");
 
 	if (!dolast_probe.kp.addr) {
@@ -249,7 +273,7 @@ static int init_probes(void) {
 		printk("register_jprobe failed, returned %u\n", ret);
 		return -1;
 	}
-	fast_probe.kp.addr = 
+	fast_probe.kp.addr =
 		(kprobe_opcode_t *) kallsyms_lookup_name("lookup_fast");
 
 	if (!fast_probe.kp.addr) {
@@ -257,7 +281,7 @@ static int init_probes(void) {
 		return -1;
 	}
 
-	slow_probe.kp.addr = 
+	slow_probe.kp.addr =
 		(kprobe_opcode_t *) kallsyms_lookup_name("lookup_slow");
 
 	if (!slow_probe.kp.addr) {
@@ -286,7 +310,7 @@ static void add_entry(char *pathname) {
 	struct path path;
 	if (kern_path(pathname, 0, &path)) {
 		printk(KERN_CRIT "Path lookup failed for %s",pathname);
-	}	
+	}
 	else {
 		unsigned int ino = path.dentry->d_inode->i_ino;
 		struct acl_entry *entry;
@@ -317,10 +341,10 @@ static void __exit procprotect_exit(void)
 
 	unregister_kretprobe(&fast_probe);
 	unregister_kretprobe(&slow_probe);
-	unregister_jprobe(&dolast_probe);	 
+	unregister_jprobe(&dolast_probe);
 
 	for (i=0;i<HASH_SIZE;i++) {
-		hlist_for_each_entry_rcu(entry, 
+		hlist_for_each_entry_rcu(entry,
 				 &procprotect_hash[i],
 				 hlist) {
 			kfree(entry);
@@ -333,7 +357,7 @@ static void __exit procprotect_exit(void)
 
 
 
-ssize_t procfile_write(struct file *file, const char *buffer, size_t count, loff_t *data) {		
+ssize_t procfile_write(struct file *file, const char *buffer, size_t count, loff_t *data) {
 	char *pathname;
 	pathname = (char *) kmalloc(count, GFP_KERNEL);
 
@@ -354,8 +378,8 @@ ssize_t procfile_write(struct file *file, const char *buffer, size_t count, loff
 	else
 		pathname[count]='\0';
 
-	add_entry(pathname);	
-		
+	add_entry(pathname);
+
 	if (!once_only) {
 		once_only=1;
 		if (init_probes()==-1)
@@ -370,7 +394,7 @@ static const struct file_operations procprotect_fops = {
 	.owner = THIS_MODULE,
 	.write = procfile_write
 };
-						  
+
 
 static int __init procprotect_init(void)
 {
