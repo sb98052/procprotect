@@ -1,6 +1,6 @@
 %define name procprotect
 %define version 0.4
-%define taglevel 6
+%define taglevel 7
 
 ### legacy from locally-built kernels, used to define these
 # kernel_release : 1.fc16  (24 is then the planetlab taglevel)
@@ -75,6 +75,9 @@ rm -rf $RPM_BUILD_ROOT
 %postun
 
 %changelog
+* Fri Apr 03 2015 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - procprotect-0.4-7
+- only cleaned up the systemd unit file to get rid of ControlGroup:
+
 * Wed Feb 18 2015 Thierry Parmentelat <thierry.parmentelat@sophia.inria.fr> - procprotect-0.4-6
 - moved pathname from stack to heap, and robustified
 
